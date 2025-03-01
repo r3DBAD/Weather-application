@@ -1,171 +1,133 @@
 import sys
+import os
 import requests
 import datetime
+from geopy.geocoders import Nominatim
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
-    QMessageBox, QHBoxLayout, QStackedWidget
+    QHBoxLayout, QStackedWidget, QGraphicsBlurEffect,QMessageBox
 )
-from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFontDatabase, QPixmap, QIcon
+from PyQt6.QtCore import Qt, QSize
 
-
-class HomeScreen(QWidget):
-    def __init__(self, stacked_widget):
+class WeatherApp(QStackedWidget):
+    def __init__(self):
         super().__init__()
-        self.stacked_widget = stacked_widget
-        
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-        
-        self.title_label = QLabel("Weather App")
+        self.setWindowTitle('Weather4You')
+        self.setGeometry(100, 100, 1280, 720)
+        container_widget = QWidget(self)
+        layout = QVBoxLayout(container_widget)
+
+        font_id = QFontDatabase.addApplicationFont("sources/fonts/try-clother.ttf")
+        font_family = QFontDatabase.applicationFontFamilies(font_id)[0] if font_id != -1 else "Arial"
+
+        self.image_path, greeting = self.set_bg()
+
+        self.background_label = QLabel(self)
+        pixmap = QPixmap(self.image_path)
+        self.background_label.setPixmap(pixmap)
+        self.background_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.background_label.setScaledContents(True)
+        self.blur_effect = QGraphicsBlurEffect(self)
+        self.blur_effect.setBlurRadius(5)
+        self.background_label.setGraphicsEffect(self.blur_effect)
+
+        self.title_label = QLabel(greeting, self)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setFont(QFont("Arial", 20))
-        layout.addWidget(self.title_label)
-        
+        self.title_label.setStyleSheet(f"""
+            font-size: 72px;
+            color: white;
+            font-family: {font_family};
+            font-weight: bold;
+            background: transparent;
+        """)
+        self.title_label.setMinimumHeight(200)
+
+        layout.addWidget(self.title_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        input_layout = QHBoxLayout()
+        input_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         self.location_input = QLineEdit(self)
-        self.location_input.setPlaceholderText("Введите город или нажмите на 'Моё местоположение'")
-        layout.addWidget(self.location_input)
+        self.location_input.setPlaceholderText("Введите город или нажмите на кнопку геолокации")
+        self.location_input.setFixedWidth(700)
+        input_layout.addWidget(self.location_input)
+
+        layout.addLayout(input_layout)
+        layout.addStretch(1)
+
+        self.addWidget(container_widget)
+        self.location_button = QPushButton(self)
+        self.location_button.setIcon(QIcon("sources/icons/location.png"))  
+        self.location_button.setIconSize(QSize(50, 50)) 
+        self.location_button.setFixedSize(60, 60)  
+        self.location_button.setStyleSheet("border: none; background: transparent;")
+        self.location_button.clicked.connect(self.set_location_from_ip)
+        self.location_button.setParent(self)  
+        self.location_button.show()  
+        with open("style.qss", "r") as file:
+            self.setStyleSheet(file.read())
+
+    def set_bg(self):
+        now = datetime.datetime.now()
+        month = now.month
+        hour = now.hour
+
+        if month in [12, 1, 2]:
+            season = 'winter'
+        elif month in [3, 4, 5]:
+            season = 'spring'
+        elif month in [6, 7, 8]:
+            season = 'summer'
+        else:
+            season = 'autumn'
+
+        if 6 <= hour < 12:
+            time_day = 'morning'
+            greeting = 'Доброе утро!'
+        elif 12 <= hour < 18:
+            time_day = 'day'
+            greeting = 'Добрый день!'
+        elif 18 <= hour < 22:
+            time_day = 'evening'
+            greeting = 'Добрый вечер!'
+        else:
+            time_day = 'evening'
+            greeting = 'Доброй ночи!'
+
+        bg_image = f'sources/backgrounds/{season}_{time_day}.jpg'
+        return bg_image, greeting
+
+    def get_current_location(self):
+        try:
+            response = requests.get("https://ipinfo.io/json", timeout=5)
+            data = response.json()
+            loc = data.get("loc", "")  
+            if not loc:
+                return ""
+
+            latitude, longitude = loc.split(",")  
+            geolocator = Nominatim(user_agent="weather_app")
+            location = geolocator.reverse((latitude, longitude), language="ru")
+
+            if location and "city" in location.raw["address"]:
+                return location.raw["address"]["city"]
+            return ""
         
-        self.button_layout = QHBoxLayout()
-        
-        self.get_weather_btn = QPushButton("Погода сейчас")
-        self.get_weather_btn.clicked.connect(self.show_weather)
-        self.button_layout.addWidget(self.get_weather_btn)
-        
-        self.get_week_weather_btn = QPushButton("Прогноз на неделю")
-        self.get_week_weather_btn.clicked.connect(self.show_week_weather)
-        self.button_layout.addWidget(self.get_week_weather_btn)
-        
-        self.use_location_btn = QPushButton("Моё местоположение")
-        self.use_location_btn.clicked.connect(self.set_location_from_ip)
-        self.button_layout.addWidget(self.use_location_btn)
-        
-        layout.addLayout(self.button_layout)
-        
-    def show_weather(self):
-        city = self.location_input.text()
-        if not city:
-            QMessageBox.warning(self, "Ошибка", "Введите горд или используйте кнопку местоположения")
-            return
-        self.stacked_widget.weather_screen.fetch_weather(city)
-        self.stacked_widget.setCurrentIndex(1)
-        
-    def show_week_weather(self):
-        city = self.location_input.text()
-        if not city:
-            QMessageBox.warning(self, "Ошибка", "Введите город или используйте кнопку местоположения")
-            return
-        self.stacked_widget.week_weather_screen.fetch_week_weather(city)
-        self.stacked_widget.setCurrentIndex(2)
-        
+        except Exception as e:
+            print("Ошибка:", e)
+            return ""
+
     def set_location_from_ip(self):
         city = self.get_current_location()
         if city:
             self.location_input.setText(city)
         else:
             QMessageBox.warning(self, "Ошибка", "Не удалось определить местоположение")
-    
-    def get_current_location(self):
-        try:
-            response = requests.get("https://ipinfo.io")
-            data = response.json()
-            return data.get("city", "")
-        except:
-            return ""
 
-
-class WeatherScreen(QWidget):
-    def __init__(self, stacked_widget):
-        super().__init__()
-        self.stacked_widget = stacked_widget
-        
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-        
-        self.weather_result = QLabel("Здесь будет погода")
-        self.weather_result.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.weather_result.setFont(QFont("Arial", 14))
-        self.weather_result.setWordWrap(True)
-        layout.addWidget(self.weather_result)
-        
-        self.back_button = QPushButton("Назад")
-        self.back_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
-        layout.addWidget(self.back_button)
-    
-    def fetch_weather(self, city):
-        api_key = ""
-        url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-        try:
-            response = requests.get(url)
-            data = response.json()
-            if data["cod"] != 200:
-                raise ValueError(data["message"])
-            temp = data["main"]["temp"]
-            weather = data["weather"][0]["description"]
-            city_name = data["name"]
-            self.weather_result.setText(f"Город: {city_name}\nТемпература: {temp}°C\nПогода: {weather.capitalize()}")
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", str(e))
-
-
-class WeekWeatherScreen(QWidget):
-    def __init__(self, stacked_widget):
-        super().__init__()
-        self.stacked_widget = stacked_widget
-        
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-        
-        self.forecast_result = QLabel("Здесь будет прогноз")
-        self.forecast_result.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.forecast_result.setFont(QFont("Arial", 14))
-        self.forecast_result.setWordWrap(True)
-        layout.addWidget(self.forecast_result)
-        
-        self.back_button = QPushButton("Назад")
-        self.back_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
-        layout.addWidget(self.back_button)
-    
-    def fetch_week_weather(self, city):
-        api_key = ""
-        geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={api_key}"
-        try:
-            geo_response = requests.get(geo_url)
-            geo_data = geo_response.json()
-            if not geo_data:
-                raise ValueError("Город не найден")
-            lat, lon = geo_data[0]["lat"], geo_data[0]["lon"]
-            url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&units=metric&exclude=hourly&appid={api_key}"
-            response = requests.get(url)
-            data = response.json()
-            if "daily" not in data:
-                raise ValueError("Ошибка загрузки данных")
-            forecast = "Прогноз на неделю:\n"
-            for day in data["daily"]:
-                date = datetime.datetime.fromtimestamp(day["dt"]).strftime("%A, %d %B")
-                temp_day = day["temp"]["day"]
-                temp_night = day["temp"]["night"]
-                weather_desc = day["weather"][0]["description"]
-                forecast += f"{date}: День {temp_day}°C, Ночь {temp_night}°C, {weather_desc.capitalize()}\n"
-            self.forecast_result.setText(forecast)
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", str(e))
-
-
-class WeatherApp(QStackedWidget):
-    def __init__(self):
-        super().__init__()
-        self.setGeometry(100, 100, 1280, 720)
-        self.home_screen = HomeScreen(self)
-        self.weather_screen = WeatherScreen(self)
-        self.week_weather_screen = WeekWeatherScreen(self)
-        self.addWidget(self.home_screen)
-        self.addWidget(self.weather_screen)
-        self.addWidget(self.week_weather_screen)
-        self.setCurrentIndex(0)
-        
-        with open("style.qss", "r") as file:
-            self.setStyleSheet(file.read())
+    def resizeEvent(self, event):
+        self.background_label.setGeometry(self.rect())
+        self.location_button.move(self.width() - 80, self.height() - 80)
 
 app = QApplication(sys.argv)
 window = WeatherApp()
