@@ -3,9 +3,11 @@ QPushButton {
     border-radius: 30px;
     border: 2px solid rgba(0, 0, 0, 50);
 }
+
 QPushButton:hover {
     background-color: rgba(200, 200, 200, 255);
 }
+
 QPushButton:pressed {
     background-color: rgba(180, 180, 180, 255);
 }

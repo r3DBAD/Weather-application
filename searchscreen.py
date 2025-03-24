@@ -1,33 +1,12 @@
-import sys
-import os
-import csv
 import requests
 import datetime
 from geopy.geocoders import Nominatim
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
-    QHBoxLayout, QStackedWidget, QGraphicsBlurEffect,QMessageBox,QCompleter
+ QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
+    QHBoxLayout, QGraphicsBlurEffect,QMessageBox
 )
 from PyQt6.QtGui import QFontDatabase, QPixmap, QIcon
-from PyQt6.QtCore import Qt, QSize,QStringListModel
-
-# def load_cities():
-#     cities = []
-#     try:
-#         with open(r"E:\Weather-application\sources\cities.csv", "r", encoding="utf-8") as file:
-#             reader = csv.reader(file)
-#             for row in reader:
-#                 if len(row) == 2:
-#                     city, country = row
-#                     cities.append(f"{city.strip()}, {country.strip()}")
-#                 else:
-#                     print(f"Ошибка в строке: {row}")
-#     except Exception as e:
-#         print(f"Ошибка загрузки городов: {e}")
-
-#     return cities
-
-
+from PyQt6.QtCore import Qt, QSize
 
 class SearchScreen(QWidget):
     def __init__(self, stacked_widget):
@@ -65,16 +44,11 @@ class SearchScreen(QWidget):
         input_layout = QHBoxLayout()
         input_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # self.city_list = load_cities()
-        self.completer = QCompleter(self.city_list, self)
-        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)  
-        self.completer.setFilterMode(Qt.MatchFlag.MatchContains)
 
         self.location_input = QLineEdit(self)
         self.location_input.setPlaceholderText("Введите город или нажмите на кнопку геолокации")
         self.location_input.setFixedWidth(700)
-        self.location_input.setCompleter(self.completer)
-        # self.completer.activated.connect(self.on_city_selected)
+
 
         input_layout.addWidget(self.location_input)
 
@@ -153,29 +127,3 @@ class SearchScreen(QWidget):
     def resizeEvent(self, event):
         self.background_label.setGeometry(self.rect())
         self.location_button.move(self.width() - 80, self.height() - 80)
-    
-
-
-class WeatherApp(QStackedWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle('Weather4You')
-        self.setGeometry(100, 100, 1100, 600)
-        self.center()
-        self.search_screen = SearchScreen(self)
-        self.addWidget(self.search_screen)
-        with open("style.qss", "r") as file:
-            self.setStyleSheet(file.read())
-
-    def center(self):
-        screen = QApplication.primaryScreen()  
-        screen_geometry = screen.availableGeometry()  
-        window_geometry = self.frameGeometry() 
-        center_point = screen_geometry.center()
-        window_geometry.moveCenter(center_point)
-        self.move(window_geometry.topLeft())
-
-app = QApplication(sys.argv)
-window = WeatherApp()
-window.show()
-sys.exit(app.exec())
