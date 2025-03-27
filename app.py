@@ -1,4 +1,3 @@
-from startwindow import StartWindow
 from searchscreen import SearchScreen
 import sys
 from PyQt6.QtWidgets import (
@@ -11,8 +10,6 @@ class WeatherApp(QStackedWidget):
         self.setWindowTitle('Weather4You')
         self.setGeometry(100, 100, 1100, 600)
         self.center()
-        self.startwindow = StartWindow(self)
-        self.addWidget(self.startwindow)
         self.search_screen = SearchScreen(self)
         self.addWidget(self.search_screen)
         self.setCurrentIndex(0)
