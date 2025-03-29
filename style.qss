@@ -83,19 +83,3 @@ QComboBox QScrollBar::add-line:vertical,
 QComboBox QScrollBar::sub-line:vertical {
     background: none;
 }
-
-
- QListView QAbstractItemView {
-    background: rgba(40, 40, 40, 0.95);
-    color: white;
-    border: 1px solid #555;
-    font-size: 16px;
-    padding: 4px;
-}
-QListView::item QAbstractItemView {
-    padding: 6px;
-    border-bottom: 1px solid #333;
-}
-    QListView::item:hover QAbstractItemView {
-    background: #555;
-}

@@ -107,25 +107,37 @@ class SearchScreen(QWidget):
         self.location_input.textEdited.connect(self.on_text_edited)
 
     def setup_completer(self):
-        """Настройка QCompleter с кастомным стилем"""
         self.completer = QCompleter()
         self.completer.setModel(self.completer_model)
         self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.completer.setFilterMode(Qt.MatchFlag.MatchContains)
         self.completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
         self.completer.setMaxVisibleItems(8)
-        
+        self.completer.popup().setStyleSheet("""
+                QListView {
+                    background: rgba(40, 40, 40, 0.95);
+                    color: white;
+                    border: 1px solid #555;
+                    font-size: 16px;
+                    padding: 4px;
+                }
+                QListView::item {
+                    padding: 6px;
+                    border-bottom: 1px solid #333;
+                }
+                    QListView::item:hover {
+                    background: #555;
+                }
+""")
         
         self.location_input.setCompleter(self.completer)
 
     def on_text_edited(self, text):
-        """Обработка ввода текста с задержкой"""
         if len(text) >= 2: 
             self.search_timer.stop()
             self.search_timer.start(500)
 
     def fetch_cities_api(self):
-        """Загрузка городов с населением >10,000 через Geonames API"""
         search_text = self.location_input.text()
         if len(search_text) < 2:
             return
