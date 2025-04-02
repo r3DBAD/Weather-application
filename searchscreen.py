@@ -102,9 +102,8 @@ class SearchScreen(QWidget):
         self.search_timer = QTimer()
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.fetch_cities_api)
-        
        
-        self.location_input.textEdited.connect(self.on_text_edited)
+        self.location_input.textChanged.connect(self.on_text_edited)
 
     def setup_completer(self):
         self.completer = QCompleter()
@@ -133,9 +132,11 @@ class SearchScreen(QWidget):
         self.location_input.setCompleter(self.completer)
 
     def on_text_edited(self, text):
-        if len(text) >= 2: 
-            self.search_timer.stop()
-            self.search_timer.start(500)
+        self.search_timer.stop()
+        if len(text.strip()) >= 2:
+            self.search_timer.start(300)  
+        else:
+            self.completer_model.setStringList([])  
 
     def fetch_cities_api(self):
         search_text = self.location_input.text()
@@ -172,8 +173,7 @@ class SearchScreen(QWidget):
             
         except Exception as e:
             print(f"API error: {e}")
-            self.completer_model.setStringList(self.get_fallback_cities(search_text))
-        
+            
 
     def change_language(self, language):
         self.current_language = language
