@@ -1,5 +1,6 @@
 import requests
 import datetime
+from functools import lru_cache
 from geopy.geocoders import Nominatim
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
@@ -11,7 +12,6 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer, QStringListModel
 
 with open("api.txt","r") as f:
     api_key_from_conf = f.read()
-
 
 class SearchScreen(QWidget):
     language_changed = pyqtSignal(str)
@@ -249,7 +249,8 @@ class SearchScreen(QWidget):
 
         bg_image = f'sources/backgrounds/{season}_{time_day}.jpg'
         return bg_image, greeting
-
+    
+    @lru_cache(maxsize=32)
     def get_current_location(self):
         try:
             response = requests.get("https://ipinfo.io/json", timeout=5)
