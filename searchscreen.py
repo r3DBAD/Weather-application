@@ -3,12 +3,16 @@ import datetime
 from geopy.geocoders import Nominatim
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
-    QHBoxLayout, QGraphicsBlurEffect, QMessageBox, QComboBox, QCompleter
+    QHBoxLayout, QGraphicsBlurEffect, QMessageBox, QComboBox, 
+    QCompleter
 )
-from PyQt6.QtGui import QFontDatabase, QPixmap, QIcon
-from PyQt6.QtCore import Qt, QSize, pyqtSignal,QTimer, QStringListModel
+from PyQt6.QtGui import (QFontDatabase, QPixmap, QIcon)
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer, QStringListModel
+
 class SearchScreen(QWidget):
-    language_changed = pyqtSignal(str)  
+    language_changed = pyqtSignal(str)
+    weather_data_ready = pyqtSignal(dict) 
+    forecast_data_ready = pyqtSignal(dict)  
     
     def __init__(self, stacked_widget):
         super().__init__()
@@ -21,7 +25,8 @@ class SearchScreen(QWidget):
                 "greeting_evening": "Добрый вечер!",
                 "greeting_night": "Доброй ночи!",
                 "placeholder": "Введите город или нажмите на кнопку геолокации",
-                "location_error": "Не удалось определить местоположение"
+                "location_error": "Не удалось определить местоположение",
+                "weather_error":"Ошибка"
             },
             "EN": {
                 "greeting_morning": "Good morning!",
@@ -29,12 +34,14 @@ class SearchScreen(QWidget):
                 "greeting_evening": "Good evening!",
                 "greeting_night": "Good night!",
                 "placeholder": "Enter city or click location button",
-                "location_error": "Failed to detect location"
+                "location_error": "Failed to detect location",
+                "weather_error":"Error"
             }
         }
         
         self.init_ui()
         self.language_changed.connect(self.update_texts)
+        
 
     def init_ui(self):
         container_widget = QWidget(self)
@@ -89,6 +96,7 @@ class SearchScreen(QWidget):
         self.location_button.setParent(self)  
         self.location_button.show()
 
+
         self.language_combo = QComboBox(self)
         self.language_combo.addItem("RU")
         self.language_combo.addItem("EN")
@@ -104,6 +112,7 @@ class SearchScreen(QWidget):
         self.search_timer.timeout.connect(self.fetch_cities_api)
        
         self.location_input.textChanged.connect(self.on_text_edited)
+        self.location_input.returnPressed.connect(self.on_city_entered)
 
     def setup_completer(self):
         self.completer = QCompleter()
@@ -126,34 +135,33 @@ class SearchScreen(QWidget):
                 }
                     QListView::item:hover {
                     background: #555;
-                }
-""")
+                }""")
         
         self.location_input.setCompleter(self.completer)
 
     def on_text_edited(self, text):
         self.search_timer.stop()
-        if len(text.strip()) >= 2:
-            self.search_timer.start(300)  
+        if len(text.strip()) >= 3:
+            self.search_timer.start(200)  
         else:
             self.completer_model.setStringList([])  
 
     def fetch_cities_api(self):
-        search_text = self.location_input.text()
-        if len(search_text) < 2:
+        search_text = self.location_input.text().strip()
+        if len(search_text) < 3:
             return
 
         try:
             url = "http://api.geonames.org/searchJSON"
             params = {
                 'name_startsWith': search_text,
-                'maxRows': 15,  
-                'username': 'r3dbad',  
+                'maxRows': 15,
+                'username': 'r3dbad',
                 'lang': 'ru' if self.current_language == 'RU' else 'en',
-                'cities': 'cities5000', 
-                'featureClass': 'P',  
-                'orderby': 'population', 
-                'style': 'FULL' 
+                'cities': 'cities5000',
+                'featureClass': 'P',
+                'orderby': 'population',
+                'style': 'FULL'
             }
             
             response = requests.get(url, params=params, timeout=5)
@@ -161,18 +169,35 @@ class SearchScreen(QWidget):
             data = response.json()
             
             cities = []
-            if 'geonames' in data:
-                for city in data['geonames']:
-                    if city.get('population', 0) > 10000:
-                        name = city.get('name', '')
-                        country = city.get('countryName', '')
-                        if name:
-                            cities.append(f"{name}, {country}" if country else name)
+            geonames = data.get('geonames', [])
+            current_lang = self.current_language.lower()
+            
+            for city in geonames:
+                if city.get('population', 0) <= 10000:
+                    continue
+                    
+                country = city.get('countryName', '')
+                name_in_lang = None
+                
+                for names in city.get("alternateNames", []):
+                    if names.get("lang") == current_lang:
+                        name_in_lang = names.get('name')
+                        if name_in_lang:
+                            break
+                
+                if not name_in_lang:
+                    name_in_lang = city.get('name', '')
+                
+                if name_in_lang:
+                    city_str = f"{name_in_lang}, {country}" if country else name_in_lang
+                    cities.append(city_str)
             
             self.completer_model.setStringList(cities[:10])
             
-        except Exception as e:
-            print(f"API error: {e}")
+        except requests.exceptions.RequestException as e:
+            print(f"API request failed: {e}")
+        except (ValueError, KeyError) as e:
+            print(f"JSON parsing error: {e}")
             
 
     def change_language(self, language):
@@ -240,7 +265,6 @@ class SearchScreen(QWidget):
             if location and "city" in location.raw["address"]:
                 return location.raw["address"]["city"]
             return ""
-        
         except Exception as e:
             print("Ошибка:", e)
             return ""
@@ -258,3 +282,92 @@ class SearchScreen(QWidget):
         self.background_label.setGeometry(self.rect())
         self.location_button.move(self.width() - 80, self.height() - 80)
         self.language_combo.move(20, self.height() - 60)
+
+    def on_city_entered(self):
+        city = self.location_input.text().strip()
+        if city:
+            self.fetch_weather(city)
+            self.fetch_week_weather(city)
+            self.stacked_widget.setCurrentIndex(1) 
+
+    def fetch_weather(self, city):
+        api_key = "78ff5c7bfbf5e9fd28bd15c030391270" 
+        url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric&lang={'ru' if self.current_language == 'RU' else 'en'}"
+        try:
+            response = requests.get(url, timeout=10)
+            data = response.json()
+            
+            if data.get("cod") != 200:
+                error_msg = data.get("message", self.translations[self.current_language]["weather_error"])
+                raise ValueError(error_msg)
+            
+            weather_data = {
+                "city": data["name"],
+                "temp": data["main"]["temp"],
+                "feels_like": data["main"]["feels_like"],
+                "humidity": data["main"]["humidity"],
+                "pressure": data["main"]["pressure"],
+                "wind": data["wind"]["speed"],
+                "description": data["weather"][0]["description"],
+                "icon": data["weather"][0]["icon"]
+            }
+            
+            self.weather_data_ready.emit(weather_data)
+            
+        except Exception as e:
+            QMessageBox.critical(self, 
+                               "Error" if self.current_language == "EN" else "Ошибка",
+                               str(e))
+
+    def fetch_week_weather(self, city):
+        api_key = "78ff5c7bfbf5e9fd28bd15c030391270"  
+        geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={api_key}"
+        
+        try:
+            geo_response = requests.get(geo_url, timeout=10)
+            geo_data = geo_response.json()
+            
+            if not geo_data:
+                raise ValueError(self.translations[self.current_language]["location_error"])
+            
+            lat, lon = geo_data[0]["lat"], geo_data[0]["lon"]
+            
+           
+            url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&units=metric&exclude=hourly,minutely&appid={api_key}&lang={'ru' if self.current_language == 'RU' else 'en'}"
+            response = requests.get(url, timeout=10)
+            data = response.json()
+            
+            if "daily" not in data:
+                raise ValueError(self.translations[self.current_language]["weather_error"])
+            
+            forecast_data = {
+                "city": city,
+                "current": {
+                    "temp": data["current"]["temp"],
+                    "feels_like": data["current"]["feels_like"],
+                    "humidity": data["current"]["humidity"],
+                    "wind": data["current"]["wind_speed"],
+                    "description": data["current"]["weather"][0]["description"],
+                    "icon": data["current"]["weather"][0]["icon"]
+                },
+                "daily": []
+            }
+            
+            for day in data["daily"][:7]:
+                day_data = {
+                    "date": datetime.datetime.fromtimestamp(day["dt"]).strftime("%d.%m"),
+                    "day_name": datetime.datetime.fromtimestamp(day["dt"]).strftime("%A"),
+                    "temp_day": day["temp"]["day"],
+                    "temp_night": day["temp"]["night"],
+                    "description": day["weather"][0]["description"],
+                    "icon": day["weather"][0]["icon"],
+                    "humidity": day["humidity"],
+                    "wind": day["wind_speed"]
+                }
+                forecast_data["daily"].append(day_data)
+            
+            self.forecast_data_ready.emit(forecast_data)
+        except Exception as e:
+            QMessageBox.critical(self, 
+                               "Error" if self.current_language == "EN" else "Ошибка",
+                               str(e))
