@@ -11,7 +11,6 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer, QStringListModel
 
 with open("api.txt","r") as f:
     api_key_from_conf = f.read()
-    print(api_key_from_conf)
 
 
 class SearchScreen(QWidget):
