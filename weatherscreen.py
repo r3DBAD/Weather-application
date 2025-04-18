@@ -12,27 +12,52 @@ class ShowWeather(QWidget):
         super().__init__()
         self.stacked_widget = stacked_widget
         self.search_screen = search_screen
+        self.current_language = "RU"
+
+        self.translations = {
+            "RU": {
+                "feelslike": "Ощущается:",
+                "wind": "Ветер:",
+                "hum": "Влажность:",
+                "tempforweek": "Температура на неделю",
+                "temp": "Температура (°C)",
+                "days": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+                "days_title": "Дни"
+            },
+            "EN": {
+                "feelslike": "Feels like:",
+                "wind": "Wind:",
+                "hum": "Humidity:",
+                "tempforweek": "Temperature for a week",
+                "temp": "Temperature (°C)",
+                "days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+                "days_title": "Days"
+            }
+        }
+        
         self.init_ui()
-        # search_screen.language_changed.connect(self.update_translations)
+        search_screen.language_changed.connect(self.change_language)
         search_screen.weather_data_ready.connect(self.update_current_weather)
         search_screen.forecast_data_ready.connect(self.update_forecast)
-        # lang = self.current_language
-        # self.translations = {
-        #     "EN": {
-        #         "feelslike": "Feels like:",
-        #         "wind":"Wind:",
-        #         "hum":"Hunidity:",
-        #         "tempforweek":"Temperature for a week",
-        #         "temp":"Temperature (°C)"
-        #     },
-        #     "RU" : {
-        #         "feelslike": "Ощущается:",
-        #         "wind":"Ветер:",
-        #         "hum":"Влажность:",
-        #         "tempforweek":"Температура на неделю",
-        #         "temp":"Температура (°C)"
-        #     }
-        # }
+    
+    def change_language(self, language):
+        self.current_language = language
+        self.update_ui_texts()
+    
+    def update_ui_texts(self):
+        trans = self.translations[self.current_language]
+        
+        self.feels_like_label.setText(f"{trans['feelslike']} --°C")
+        self.wind_label.setText(f"{trans['wind']} -- м/с")
+        self.humidity_label.setText(f"{trans['hum']} --%")
+        
+        if hasattr(self, 'chart_view') and self.chart_view.chart():
+            self.chart_view.chart().setTitle(trans['tempforweek'])
+        
+        if self.current_language == "RU":
+            self.date_label.setText(datetime.datetime.now().strftime("%d %B %Y"))
+        else:
+            self.date_label.setText(datetime.datetime.now().strftime("%B %d, %Y"))
     
     def init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -96,15 +121,16 @@ class ShowWeather(QWidget):
         self.weather_desc_label.setFont(QFont('Arial', 14, QFont.Weight.Medium))
         self.weather_desc_label.setStyleSheet("color: white;")
         
-        self.feels_like_label = QLabel("Ощущается: --°C")
+        trans = self.translations[self.current_language]
+        self.feels_like_label = QLabel(f"{trans['feelslike']} --°C")
         self.feels_like_label.setFont(QFont('Arial', 12))
         self.feels_like_label.setStyleSheet("color: rgba(255, 255, 255, 0.9);")
         
-        self.wind_label = QLabel("Ветер: -- м/с")
+        self.wind_label = QLabel(f"{trans['wind']} -- м/с")
         self.wind_label.setFont(QFont('Arial', 12))
         self.wind_label.setStyleSheet("color: rgba(255, 255, 255, 0.9);")
         
-        self.humidity_label = QLabel("Влажность: --%")
+        self.humidity_label = QLabel(f"{trans['hum']} --%")
         self.humidity_label.setFont(QFont('Arial', 12))
         self.humidity_label.setStyleSheet("color: rgba(255, 255, 255, 0.9);")
         
@@ -189,10 +215,13 @@ class ShowWeather(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding
         )
+        
+        self.create_empty_chart()
     
     def create_empty_chart(self):
         chart = QChart()
-        chart.setTitle("Температура на неделю")
+        trans = self.translations[self.current_language]
+        chart.setTitle(trans["tempforweek"])
         chart.setTitleFont(QFont('Arial', 12, QFont.Weight.Medium))
         chart.setTitleBrush(QBrush(QColor(255, 255, 255)))
         chart.legend().hide()
@@ -202,15 +231,15 @@ class ShowWeather(QWidget):
 
         axisX = QValueAxis()
         axisX.setRange(0, 6)
-        axisX.setTitleText("Дни")
+        axisX.setTitleText(trans["days_title"])
         axisX.setTitleFont(QFont('Arial', 10))
         axisX.setLabelsColor(QColor(255, 255, 255))
         axisX.setTitleBrush(QBrush(QColor(255, 255, 255)))
         axisX.setGridLineColor(QColor(255, 255, 255, 30))
-        
+    
         axisY = QValueAxis()
         axisY.setRange(0, 30)
-        axisY.setTitleText("Температура (°C)")
+        axisY.setTitleText(trans["temp"])
         axisY.setTitleFont(QFont('Arial', 10))
         axisY.setLabelsColor(QColor(255, 255, 255))
         axisY.setTitleBrush(QBrush(QColor(255, 255, 255)))
@@ -222,27 +251,28 @@ class ShowWeather(QWidget):
         self.chart_view.setChart(chart)
     
     def update_current_weather(self, weather_data):
+        trans = self.translations[self.current_language]
+        
         self.location_label.setText(weather_data["city"])
         self.current_temp_label.setText(f"{round(weather_data['temp'])}°C")
         self.weather_desc_label.setText(weather_data["description"].capitalize())
-        self.feels_like_label.setText(f"Ощущается: {round(weather_data['feels_like'])}°C")
-        self.wind_label.setText(f"Ветер: {weather_data['wind']} м/с")
-        self.humidity_label.setText(f"Влажность: {weather_data['humidity']}%")
+        self.feels_like_label.setText(f"{trans['feelslike']} {round(weather_data['feels_like'])}°C")
+        self.wind_label.setText(f"{trans['wind']} {weather_data['wind']} м/с")
+        self.humidity_label.setText(f"{trans['hum']} {weather_data['humidity']}%")
         
-        self.date_label.setText(datetime.datetime.now().strftime("%d %B %Y"))
+        if self.current_language == "RU":
+            self.date_label.setText(datetime.datetime.now().strftime("%d %B %Y"))
+        else:
+            self.date_label.setText(datetime.datetime.now().strftime("%B %d, %Y"))
     
     def update_forecast(self, forecast_data):
         temps = []
+        trans = self.translations[self.current_language]
         
         for i, day in enumerate(forecast_data["daily"][:7]):
             day_name, day_temp, day_desc = self.daily_widgets[i]
             
-            if self.search_screen.current_language == "RU":
-                day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-            else:
-                day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-            
-            day_name.setText(day_names[i])
+            day_name.setText(trans["days"][i])
             day_temp.setText(f"{round(day['temp_day'])}/{round(day['temp_night'])}°C")
             day_desc.setText(day["description"].capitalize())
             
@@ -252,7 +282,8 @@ class ShowWeather(QWidget):
     
     def update_chart(self, temperatures):
         chart = QChart()
-        chart.setTitle("Температура на неделю")
+        trans = self.translations[self.current_language]
+        chart.setTitle(trans["tempforweek"])
         chart.setTitleFont(QFont('Arial', 12, QFont.Weight.Medium))
         chart.setTitleBrush(QBrush(QColor(255, 255, 255)))
         chart.legend().hide()
@@ -274,7 +305,7 @@ class ShowWeather(QWidget):
         axisX = QValueAxis()
         axisX.setRange(0, 6)
         axisX.setLabelFormat("%d")
-        axisX.setTitleText("Дни")
+        axisX.setTitleText(trans["days_title"])
         axisX.setTitleFont(QFont('Arial', 10))
         axisX.setLabelsColor(QColor(255, 255, 255))
         axisX.setTitleBrush(QBrush(QColor(255, 255, 255)))
@@ -284,7 +315,7 @@ class ShowWeather(QWidget):
         min_temp = min(temperatures)
         max_temp = max(temperatures)
         axisY.setRange(min_temp - 2, max_temp + 2)
-        axisY.setTitleText("Температура (°C)")
+        axisY.setTitleText(trans["temp"])
         axisY.setTitleFont(QFont('Arial', 10))
         axisY.setLabelsColor(QColor(255, 255, 255))
         axisY.setTitleBrush(QBrush(QColor(255, 255, 255)))

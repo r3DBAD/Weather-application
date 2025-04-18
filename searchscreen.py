@@ -9,6 +9,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import (QFontDatabase, QPixmap, QIcon)
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer, QStringListModel
 
+with open("api.txt","r") as f:
+    api_key_from_conf = f.read()
+    print(api_key_from_conf)
+
+
 class SearchScreen(QWidget):
     language_changed = pyqtSignal(str)
     weather_data_ready = pyqtSignal(dict) 
@@ -42,7 +47,6 @@ class SearchScreen(QWidget):
         self.init_ui()
         self.language_changed.connect(self.update_texts)
         
-
     def init_ui(self):
         container_widget = QWidget(self)
         layout = QVBoxLayout(container_widget)
@@ -291,7 +295,7 @@ class SearchScreen(QWidget):
             self.stacked_widget.setCurrentIndex(1) 
 
     def fetch_weather(self, city):
-        api_key = "78ff5c7bfbf5e9fd28bd15c030391270" 
+        api_key = api_key_from_conf
         url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric&lang={'ru' if self.current_language == 'RU' else 'en'}"
         try:
             response = requests.get(url, timeout=10)
@@ -320,7 +324,7 @@ class SearchScreen(QWidget):
                                str(e))
 
     def fetch_week_weather(self, city):
-        api_key = "78ff5c7bfbf5e9fd28bd15c030391270"  
+        api_key = api_key_from_conf
         geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={api_key}"
         
         try:
