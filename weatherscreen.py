@@ -190,3 +190,109 @@ class ShowWeather(QWidget):
             QSizePolicy.Policy.Expanding
         )
     
+    def create_empty_chart(self):
+        chart = QChart()
+        chart.setTitle("Температура на неделю")
+        chart.setTitleFont(QFont('Arial', 12, QFont.Weight.Medium))
+        chart.setTitleBrush(QBrush(QColor(255, 255, 255)))
+        chart.legend().hide()
+        chart.setBackgroundBrush(QBrush(QColor(0, 0, 0, 0)))
+        chart.setPlotAreaBackgroundBrush(QBrush(QColor(0, 0, 0, 0)))
+        chart.setPlotAreaBackgroundVisible(True)
+
+        axisX = QValueAxis()
+        axisX.setRange(0, 6)
+        axisX.setTitleText("Дни")
+        axisX.setTitleFont(QFont('Arial', 10))
+        axisX.setLabelsColor(QColor(255, 255, 255))
+        axisX.setTitleBrush(QBrush(QColor(255, 255, 255)))
+        axisX.setGridLineColor(QColor(255, 255, 255, 30))
+        
+        axisY = QValueAxis()
+        axisY.setRange(0, 30)
+        axisY.setTitleText("Температура (°C)")
+        axisY.setTitleFont(QFont('Arial', 10))
+        axisY.setLabelsColor(QColor(255, 255, 255))
+        axisY.setTitleBrush(QBrush(QColor(255, 255, 255)))
+        axisY.setGridLineColor(QColor(255, 255, 255, 30))
+        
+        chart.addAxis(axisX, Qt.AlignmentFlag.AlignBottom)
+        chart.addAxis(axisY, Qt.AlignmentFlag.AlignLeft)
+        
+        self.chart_view.setChart(chart)
+    
+    def update_current_weather(self, weather_data):
+        self.location_label.setText(weather_data["city"])
+        self.current_temp_label.setText(f"{round(weather_data['temp'])}°C")
+        self.weather_desc_label.setText(weather_data["description"].capitalize())
+        self.feels_like_label.setText(f"Ощущается: {round(weather_data['feels_like'])}°C")
+        self.wind_label.setText(f"Ветер: {weather_data['wind']} м/с")
+        self.humidity_label.setText(f"Влажность: {weather_data['humidity']}%")
+        
+        self.date_label.setText(datetime.datetime.now().strftime("%d %B %Y"))
+    
+    def update_forecast(self, forecast_data):
+        temps = []
+        
+        for i, day in enumerate(forecast_data["daily"][:7]):
+            day_name, day_temp, day_desc = self.daily_widgets[i]
+            
+            if self.search_screen.current_language == "RU":
+                day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+            else:
+                day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            
+            day_name.setText(day_names[i])
+            day_temp.setText(f"{round(day['temp_day'])}/{round(day['temp_night'])}°C")
+            day_desc.setText(day["description"].capitalize())
+            
+            temps.append(day["temp_day"])
+        
+        self.update_chart(temps)
+    
+    def update_chart(self, temperatures):
+        chart = QChart()
+        chart.setTitle("Температура на неделю")
+        chart.setTitleFont(QFont('Arial', 12, QFont.Weight.Medium))
+        chart.setTitleBrush(QBrush(QColor(255, 255, 255)))
+        chart.legend().hide()
+        chart.setBackgroundBrush(QBrush(QColor(0, 0, 0, 0)))
+        chart.setPlotAreaBackgroundBrush(QBrush(QColor(0, 0, 0, 0)))
+        chart.setPlotAreaBackgroundVisible(True)
+        
+        series = QLineSeries()
+        series.setColor(QColor(255, 255, 255))
+        pen = series.pen()
+        pen.setWidth(3)
+        series.setPen(pen)
+        
+        for i, temp in enumerate(temperatures):
+            series.append(QPointF(i, temp))
+        
+        chart.addSeries(series)
+        
+        axisX = QValueAxis()
+        axisX.setRange(0, 6)
+        axisX.setLabelFormat("%d")
+        axisX.setTitleText("Дни")
+        axisX.setTitleFont(QFont('Arial', 10))
+        axisX.setLabelsColor(QColor(255, 255, 255))
+        axisX.setTitleBrush(QBrush(QColor(255, 255, 255)))
+        axisX.setGridLineColor(QColor(255, 255, 255, 30))
+        
+        axisY = QValueAxis()
+        min_temp = min(temperatures)
+        max_temp = max(temperatures)
+        axisY.setRange(min_temp - 2, max_temp + 2)
+        axisY.setTitleText("Температура (°C)")
+        axisY.setTitleFont(QFont('Arial', 10))
+        axisY.setLabelsColor(QColor(255, 255, 255))
+        axisY.setTitleBrush(QBrush(QColor(255, 255, 255)))
+        axisY.setGridLineColor(QColor(255, 255, 255, 30))
+        
+        chart.addAxis(axisX, Qt.AlignmentFlag.AlignBottom)
+        chart.addAxis(axisY, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axisX)
+        series.attachAxis(axisY)
+        
+        self.chart_view.setChart(chart)
