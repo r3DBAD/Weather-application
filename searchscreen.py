@@ -170,7 +170,7 @@ class SearchScreen(QWidget):
     def on_text_edited(self, text):
         self.search_timer.stop()
         if len(text.strip()) >= 3:
-            self.search_timer.start(200)  
+            self.search_timer.start(100)  
         else:
             self.completer_model.setStringList([])  
 
@@ -184,7 +184,7 @@ class SearchScreen(QWidget):
             url = "http://api.geonames.org/searchJSON"
             params = {
                 'name_startsWith': search_text,
-                'maxRows': 15,
+                'maxRows': 10,
                 'username': USERNAME_GEONAMES,
                 'lang': 'ru' if self.current_language == 'RU' else 'en',
                 'cities': 'cities5000',
@@ -193,7 +193,7 @@ class SearchScreen(QWidget):
                 'style': 'FULL'
             }
             
-            response = requests.get(url, params=params, timeout=5)
+            response = requests.get(url, params=params, timeout=3)
             response.raise_for_status()
             data = response.json()
             
@@ -229,7 +229,7 @@ class SearchScreen(QWidget):
                     city_str = f"{name_in_lang}, {country}" if country else name_in_lang
                     cities.append(city_str)
             
-            self.completer_model.setStringList(cities[:10])
+            self.completer_model.setStringList(cities[:8])
             
         except Exception as e:
             self.show_error("any_error")
