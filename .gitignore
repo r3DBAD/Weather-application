@@ -2,9 +2,8 @@
 .idea/
 .vscode/
 *.swp
-
-__pycache__/
-*.py[cod]
 build/
 dist/
+__pycache__/
+*.py[cod]
 app.spec
