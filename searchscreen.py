@@ -382,7 +382,7 @@ class SearchScreen(QWidget):
             geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={api_key_from_conf}"
             geo_response = requests.get(geo_url, timeout=10)
             geo_data = geo_response.json()
-            
+
             if not geo_data:
                 return None
                 
