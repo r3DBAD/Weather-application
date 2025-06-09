@@ -313,6 +313,7 @@ class SearchScreen(QWidget):
         try:
             if city := self.get_current_location():
                 self.location_input.setText(city)
+                self.location_input.setFocus()
             else:
                 self.show_error("location_error")
         except Exception:
