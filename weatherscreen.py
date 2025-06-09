@@ -1,11 +1,19 @@
 import datetime
+import os
+import sys
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, 
     QPushButton, QSizePolicy, QSpacerItem
 )
 from PyQt6.QtGui import QFont, QPainter, QIcon, QColor, QLinearGradient, QBrush, QPalette
 from PyQt6.QtCore import Qt, QPointF, QSize
-from PyQt6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis
+from PyQt6.QtCharts import QChart, QChartView, QLineSeries, QCategoryAxis,QValueAxis
+
+@staticmethod
+def resource_path(relative):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative)
+    return os.path.join(relative)
 
 class ShowWeather(QWidget):
     def __init__(self, stacked_widget, search_screen):
@@ -22,7 +30,11 @@ class ShowWeather(QWidget):
                 "tempforweek": "Температура на неделю",
                 "temp": "Температура (°C)",
                 "days": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-                "days_title": "Дни"
+                "days_title": "Дни",
+                "months": [
+                    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+                ]
             },
             "EN": {
                 "feelslike": "Feels like:",
@@ -31,7 +43,11 @@ class ShowWeather(QWidget):
                 "tempforweek": "Temperature for a week",
                 "temp": "Temperature (°C)",
                 "days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-                "days_title": "Days"
+                "days_title": "Days",
+                "months": [
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                ]
             }
         }
         
@@ -54,10 +70,18 @@ class ShowWeather(QWidget):
         if hasattr(self, 'chart_view') and self.chart_view.chart():
             self.chart_view.chart().setTitle(trans['tempforweek'])
         
+        self.update_date_label()
+    
+    def update_date_label(self):
+        now = datetime.datetime.now()
+        trans = self.translations[self.current_language]
+        
         if self.current_language == "RU":
-            self.date_label.setText(datetime.datetime.now().strftime("%d %B %Y"))
+            month_name = trans["months"][now.month - 1]
+            self.date_label.setText(f"{now.day} {month_name} {now.year}")
         else:
-            self.date_label.setText(datetime.datetime.now().strftime("%B %d, %Y"))
+            month_name = trans["months"][now.month - 1]
+            self.date_label.setText(f"{month_name} {now.day}, {now.year}")
     
     def init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -76,7 +100,8 @@ class ShowWeather(QWidget):
         top_row.setContentsMargins(0, 0, 0, 10)
         
         self.back_button = QPushButton()
-        self.back_button.setIcon(QIcon('sources/icons/home.png'))
+        backbutton_icon_path = resource_path(os.path.join('sources/icons/', 'home.png'))
+        self.back_button.setIcon(QIcon(backbutton_icon_path))
         self.back_button.setIconSize(QSize(30, 30))
         self.back_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
         top_row.addWidget(self.back_button)
@@ -229,7 +254,10 @@ class ShowWeather(QWidget):
         chart.setPlotAreaBackgroundBrush(QBrush(QColor(0, 0, 0, 0)))
         chart.setPlotAreaBackgroundVisible(True)
 
-        axisX = QValueAxis()
+        axisX = QCategoryAxis()
+        axisX.setLabelsPosition(QCategoryAxis.AxisLabelsPosition.AxisLabelsPositionOnValue)
+        for i, day in enumerate(trans["days"]):
+            axisX.append(day, i)
         axisX.setRange(0, 6)
         axisX.setTitleText(trans["days_title"])
         axisX.setTitleFont(QFont('Arial', 10))
@@ -260,10 +288,7 @@ class ShowWeather(QWidget):
         self.wind_label.setText(f"{trans['wind']} {weather_data['wind']} м/с")
         self.humidity_label.setText(f"{trans['hum']} {weather_data['humidity']}%")
         
-        if self.current_language == "RU":
-            self.date_label.setText(datetime.datetime.now().strftime("%d %B %Y"))
-        else:
-            self.date_label.setText(datetime.datetime.now().strftime("%B %d, %Y"))
+        self.update_date_label()
     
     def update_forecast(self, forecast_data):
         temps = []
@@ -302,9 +327,11 @@ class ShowWeather(QWidget):
         
         chart.addSeries(series)
         
-        axisX = QValueAxis()
+        axisX = QCategoryAxis()
+        axisX.setLabelsPosition(QCategoryAxis.AxisLabelsPosition.AxisLabelsPositionOnValue)
+        for i, day in enumerate(trans["days"]):
+            axisX.append(day, i)
         axisX.setRange(0, 6)
-        axisX.setLabelFormat("%d")
         axisX.setTitleText(trans["days_title"])
         axisX.setTitleFont(QFont('Arial', 10))
         axisX.setLabelsColor(QColor(255, 255, 255))

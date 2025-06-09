@@ -1,7 +1,14 @@
 from searchscreen import SearchScreen
 from weatherscreen import ShowWeather
 import sys
+import os
 from PyQt6.QtWidgets import (QApplication, QStackedWidget)
+
+@staticmethod
+def resource_path(relative):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative)
+    return os.path.join(relative)
 
 class WeatherApp(QStackedWidget):
     def __init__(self):
@@ -14,7 +21,8 @@ class WeatherApp(QStackedWidget):
         self.weatherscreen = ShowWeather(self,self.search_screen)
         self.addWidget(self.weatherscreen)
         self.setCurrentIndex(0)
-        with open("style.qss", "r") as file:
+        style_path = resource_path("style.qss")
+        with open(style_path, "r") as file:
             self.setStyleSheet(file.read())
 
     def center(self):
